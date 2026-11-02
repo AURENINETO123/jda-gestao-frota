@@ -232,16 +232,15 @@
             color: #1e293b;
             text-align: right;
         }
-        /* Estilo do Recibo Visual na Tela de Pré-visualização */
         .recibo-visual-box {
             background: #ffffff;
-            border: 2px dashed #94a3b8;
+            border: 1px solid #cbd5e1;
             padding: 15px;
             border-radius: 8px;
-            font-family: 'Courier New', Courier, monospace;
-            font-size: 13px;
-            line-height: 1.4;
-            color: #000;
+            font-family: Arial, sans-serif;
+            font-size: 14px;
+            line-height: 1.5;
+            color: #1e293b;
             margin-bottom: 15px;
         }
     </style>
@@ -398,10 +397,10 @@
 
         <!-- TELA 7: VISUALIZAR E COMPARTILHAR RECIBO -->
         <div id="tela-visualizar-recibo" class="secao">
-            <h1>Recibo / Vale</h1>
+            <h1>Recibo / Vale WhatsApp</h1>
             <div id="boxReciboVisual" class="recibo-visual-box"></div>
             
-            <button class="btn-menu" style="background-color: #16a34a; margin-bottom: 10px;" onclick="compartilharNoWhatsApp()">💬 Enviar / Compartilhar</button>
+            <button class="btn-menu" style="background-color: #16a34a; margin-bottom: 10px;" onclick="compartilharNoWhatsApp()">💬 Enviar no WhatsApp</button>
             <button class="btn-menu btn-voltar" onclick="mudarTela('tela-extrato')">Voltar ao Extrato</button>
         </div>
 
@@ -642,12 +641,8 @@
             }
         }
 
-        function executarImpressao(item) {
-            let textoRecibo = montarTextoRecibo(item);
-            enviarParaImpressora(textoRecibo);
-        }
-
-        function montarTextoRecibo(item) {
+        // TEXTO FORMATADO PARA IMPRESSORA TÉRMICA (Mantém o padrão térmico intacto)
+        function montarTextoTermica(item) {
             let tituloRecibo = (item.pagamento === 'Pendente') ? "        VALE DE CARREGAMENTO" : "        RECIBO DE CARREGAMENTO";
 
             let blocoAssinatura = "";
@@ -685,16 +680,46 @@ ${blocoAssinatura}           Obrigado pela preferencia!
 `;
         }
 
+        // TEXTO LIMPO E ORGANIZADO ESPECÍFICO PARA O WHATSAPP (Com asteriscos de negrito e emojis)
+        function montarTextoWhatsApp(item) {
+            let titulo = (item.pagamento === 'Pendente') ? "📄 *VALE DE CARREGAMENTO*" : "🧾 *RECIBO DE CARREGAMENTO*";
+            let blocoObs = item.obs ? `💬 *Observação:* ${item.obs}\n` : "";
+            let blocoAssinatura = item.pagamento === 'Pendente' ? `\n✍️ __________________________\n*Assinatura do Motorista*\n` : "";
+
+            return `🚜 *JDA SERVIÇOS E LOCAÇÕES* 🏗️
+📞 Fones: (88) 99750-7446 / (88) 99932-1104
+
+${titulo}
+🔢 *Nº Série:* ${item.numSerie}
+
+📅 *Data/Hora:* ${item.dataHora}
+👤 *Cliente:* ${item.cliente}
+📱 *Telefone:* ${item.telCliente || 'Não informado'}
+📍 *Endereço:* ${item.endCliente || 'Não informado'}
+🚚 *Caminhão:* ${item.caminhao}
+🧱 *Material:* ${item.material}
+📦 *Quantidade:* ${item.qtd} m³ (R$ ${item.precoUnit.toFixed(2)}/m³)
+💰 *Valor Total:* R$ ${item.valor.toFixed(2)}
+💳 *Pagamento:* ${item.pagamento}
+${blocoObs}${blocoAssinatura}
+🙏 Obrigado pela preferência!`;
+        }
+
+        function executarImpressao(item) {
+            let textoRecibo = montarTextoTermica(item);
+            enviarParaImpressora(textoRecibo);
+        }
+
         function abrirTelaVisualizarRecibo(index) {
             const item = bancoCarregamentos[index];
             if (!item.numSerie) item.numSerie = gerarNumeroSerieCliente(item.cliente);
             if (!item.material) item.material = 'Areia';
             if (!item.precoUnit && item.qtd > 0) item.precoUnit = item.valor / item.qtd;
 
-            reciboTextoAtualParaCompartilhar = montarTextoRecibo(item);
+            reciboTextoAtualParaCompartilhar = montarTextoWhatsApp(item);
 
-            // Substitui quebras de linha por <br> para exibir bonito na tela
-            let htmlFormatado = reciboTextoAtualParaCompartilhar.replace(/\n/g, '<br>').replace(/ /g, '&nbsp;');
+            // Exibe de forma limpa na tela do app com quebras de linha normais
+            let htmlFormatado = reciboTextoAtualParaCompartilhar.replace(/\n/g, '<br>').replace(/\*(.*?)\*/g, '<strong>$1</strong>');
             document.getElementById('boxReciboVisual').innerHTML = htmlFormatado;
 
             mudarTela('tela-visualizar-recibo');
@@ -711,7 +736,6 @@ ${blocoAssinatura}           Obrigado pela preferencia!
                     console.log('Compartilhamento cancelado ou erro:', err);
                 }
             } else {
-                // Fallback caso o navegador não suporte compartilhamento nativo
                 let urlWp = `https://api.whatsapp.com/send?text=${encodeURIComponent(reciboTextoAtualParaCompartilhar)}`;
                 window.open(urlWp, '_blank');
             }
@@ -1072,7 +1096,7 @@ ${blocoAssinatura}           Obrigado pela preferencia!
                     <div class="acoes-card">
                         <button class="btn-acao btn-editar" onclick="abrirEditar(${indexReal})">✏️ Editar</button>
                         <button class="btn-acao btn-imprimir" onclick="imprimirUnicoDoExtrato(${indexReal})">🖨️</button>
-                        <button class="btn-acao btn-img" onclick="abrirTelaVisualizarRecibo(${indexReal})">💬 Compartilhar</button>
+                        <button class="btn-acao btn-img" onclick="abrirTelaVisualizarRecibo(${indexReal})">💬 WhatsApp</button>
                         <button class="btn-acao btn-excluir" onclick="excluirCarregamento(${indexReal})">🗑️</button>
                     </div>
                 `;
